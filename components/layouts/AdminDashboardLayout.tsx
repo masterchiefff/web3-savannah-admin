@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -47,15 +47,40 @@ interface AdminDashboardProps {
   children?: React.ReactNode
 }
 
+interface User {
+  id: string
+  email: string
+  role: string
+}
+
 export function AdminDashboard({ children }: AdminDashboardProps) {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
+  // Load user from localStorage when component mounts
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser)
+        setUser(parsedUser)
+      } catch (error) {
+        console.error("Error parsing user from localStorage:", error)
+        localStorage.removeItem("user")
+        router.push("/login")
+      }
+    } else {
+      router.push("/login")
+    }
+  }, [router])
+
   const handleLogout = () => {
-    // Clear authentication data (e.g., token) from localStorage
+    // Clear authentication data from localStorage
     localStorage.removeItem("authToken")
+    localStorage.removeItem("user")
     // Redirect to login page
     router.push("/login")
   }
@@ -87,10 +112,19 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
     return page ? page.label.toUpperCase() : "DASHBOARD"
   }
 
+  // Derive initials from email for AvatarFallback
+  const getInitials = (email: string) => {
+    const nameParts = email.split("@")[0].split(".")
+    return nameParts
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("")
+      .slice(0, 2)
+  }
+
   const SidebarContent = () => (
     <div className="h-full bg-gray-800 flex flex-col">
       <div className="p-6">
-        <h1 className="text-xl font-bold text-white">DEVPANEL</h1>
+        <h1 className="text-xl font-bold text-white">Web 3 Savannah</h1>
       </div>
       <div className="flex-1 px-4 overflow-y-auto scrollbar-hide">
         <div className="mb-6">
@@ -143,11 +177,11 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
         <div className="flex items-center">
           <Avatar className="w-8 h-8">
             <AvatarImage src="/placeholder.svg?height=32&width=32" />
-            <AvatarFallback>AW</AvatarFallback>
+            <AvatarFallback>{user ? getInitials(user.email) : "AW"}</AvatarFallback>
           </Avatar>
           <div className="ml-3 flex-1">
-            <p className="text-sm font-medium text-white">Alex Wilson</p>
-            <p className="text-xs text-gray-400">Admin</p>
+            <p className="text-sm font-medium text-white">{user ? user.email : "Guest"}</p>
+            <p className="text-xs text-gray-400">{user ? user.role : "N/A"}</p>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-400" />
         </div>
