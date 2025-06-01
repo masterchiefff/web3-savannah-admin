@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Search,
   ChevronLeft,
@@ -32,7 +32,7 @@ import {
   Archive,
   Image,
   Save,
-  BookIcon as Publish,
+  Book as Publish,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,11 +46,34 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
+import { useRouter } from 'next/navigation';
+
+interface Blog {
+  _id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  isFeatured: boolean;
+  author: { email: string };
+  image?: string;
+  createdAt: string;
+}
 
 export function AdminDashboard() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState("developers")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
 
   const sidebarItems = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", active: currentPage === "dashboard" },
@@ -66,7 +89,7 @@ export function AdminDashboard() {
 
   const accountItems = [
     { id: "settings", icon: Settings, label: "Settings", active: currentPage === "settings" },
-    { icon: LogOut, label: "Logout", active: false },
+    { icon: LogOut, label: "Logout", active: false, onClick: () => logout() },
   ]
 
   const handleNavigation = (pageId: string) => {
@@ -112,7 +135,7 @@ export function AdminDashboard() {
             {accountItems.map((item, index) => (
               <button
                 key={index}
-                onClick={() => item.id && handleNavigation(item.id)}
+                onClick={() => item.onClick ? item.onClick() : item.id && handleNavigation(item.id)}
                 className="w-full flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700"
               >
                 <item.icon className="w-4 h-4 mr-3" />
@@ -128,10 +151,10 @@ export function AdminDashboard() {
         <div className="flex items-center">
           <Avatar className="w-8 h-8">
             <AvatarImage src="/placeholder.svg?height=32&width=32" />
-            <AvatarFallback>AW</AvatarFallback>
+            <AvatarFallback>{user?.email?.substring(0, 2).toUpperCase() || 'AW'}</AvatarFallback>
           </Avatar>
           <div className="ml-3 flex-1">
-            <p className="text-sm font-medium text-white">Alex Wilson</p>
+            <p className="text-sm font-medium text-white">{user?.email || 'Alex Wilson'}</p>
             <p className="text-xs text-gray-400">Admin</p>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -166,6 +189,8 @@ export function AdminDashboard() {
         return <DashboardPage />
     }
   }
+
+  if (!user) return null;
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
@@ -216,102 +241,6 @@ export function AdminDashboard() {
 
         {/* Page Content */}
         <div className="flex-1 overflow-hidden">{renderPageContent()}</div>
-      </div>
-    </div>
-  )
-}
-
-// Dashboard Page Component
-function DashboardPage() {
-  const stats = [
-    { title: "Total Developers", value: "24", change: "+2", icon: Users, color: "text-blue-400" },
-    { title: "Active Projects", value: "12", change: "+3", icon: FolderOpen, color: "text-green-400" },
-    { title: "Pending Tasks", value: "47", change: "-5", icon: CheckSquare, color: "text-yellow-400" },
-    { title: "Monthly Revenue", value: "$45,230", change: "+12%", icon: DollarSign, color: "text-purple-400" },
-  ]
-
-  const recentActivities = [
-    { user: "Sarah Mitchell", action: "completed task", project: "E-commerce Platform", time: "2 hours ago" },
-    { user: "John Doe", action: "started project", project: "Mobile App", time: "4 hours ago" },
-    { user: "Emma Wilson", action: "submitted code review", project: "Dashboard UI", time: "6 hours ago" },
-    { user: "Mike Johnson", action: "deployed to production", project: "API Gateway", time: "1 day ago" },
-  ]
-
-  return (
-    <div className="p-4 lg:p-6 space-y-6 overflow-y-auto scrollbar-hide h-full">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
-          <Card key={index} className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">{stat.title}</p>
-                  <p className="text-2xl font-bold text-white">{stat.value}</p>
-                  <p className={`text-sm ${stat.change.startsWith("+") ? "text-green-400" : "text-red-400"}`}>
-                    {stat.change} from last month
-                  </p>
-                </div>
-                <stat.icon className={`w-8 h-8 ${stat.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentActivities.map((activity, index) => (
-              <div key={index} className="flex items-center space-x-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback>
-                    {activity.user
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-sm text-white">
-                    <span className="font-medium">{activity.user}</span> {activity.action} in{" "}
-                    <span className="text-blue-400">{activity.project}</span>
-                  </p>
-                  <p className="text-xs text-gray-400">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Developer
-            </Button>
-            <Button className="w-full justify-start bg-green-600 hover:bg-green-700">
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Create Project
-            </Button>
-            <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700">
-              <FileText className="w-4 h-4 mr-2" />
-              Write Blog Post
-            </Button>
-            <Button className="w-full justify-start bg-orange-600 hover:bg-orange-700">
-              <Calendar className="w-4 h-4 mr-2" />
-              Schedule Event
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
@@ -695,47 +624,182 @@ function TasksPage() {
 }
 
 // Blog Page Component
-function BlogPage() {
-  const [selectedPost, setSelectedPost] = useState(null)
+interface Blog {
+  _id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  isFeatured: boolean;
+  author: { email: string };
+  image?: string;
+  createdAt: string;
+}
 
-  const blogPosts = [
-    {
-      id: 1,
-      title: "Getting Started with React 18",
-      author: "Sarah Mitchell",
-      status: "published",
-      views: 1250,
-      date: "2024-04-15",
-      category: "Tutorial",
-    },
-    {
-      id: 2,
-      title: "Best Practices for Node.js Development",
-      author: "John Doe",
-      status: "draft",
-      views: 0,
-      date: "2024-04-20",
-      category: "Guide",
-    },
-    {
-      id: 3,
-      title: "Introduction to TypeScript",
-      author: "Emma Wilson",
-      status: "published",
-      views: 890,
-      date: "2024-04-10",
-      category: "Tutorial",
-    },
-    {
-      id: 4,
-      title: "Building Scalable APIs",
-      author: "Mike Johnson",
-      status: "review",
-      views: 0,
-      date: "2024-04-22",
-      category: "Technical",
-    },
-  ]
+function BlogPage() {
+  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    tags: '',
+    isFeatured: false,
+    image: null as File | null,
+  });
+  const [editingBlogId, setEditingBlogId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch all blogs on mount
+  useEffect(() => {
+    fetchBlogs();
+  }, []);
+
+  // Fetch blogs from API
+  const fetchBlogs = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/v1/blogs', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBlogs(response.data.blogs);
+    } catch (error) {
+      setError('Failed to fetch blogs');
+    }
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData((prev) => ({ ...prev, image: file }));
+  };
+
+  // Handle form submission (create or update)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    const token = localStorage.getItem('token');
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('content', formData.content);
+    const tagsArray = formData.tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter((tag) => tag);
+    formDataToSend.append('tags', JSON.stringify(tagsArray));
+    formDataToSend.append('isFeatured', String(formData.isFeatured));
+    if (formData.image) {
+      formDataToSend.append('image', formData.image);
+    }
+
+    try {
+      let response;
+      if (editingBlogId) {
+        response = await axios.put(
+          `http://localhost:5000/api/v1/blogs/${editingBlogId}`,
+          formDataToSend,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+      } else {
+        response = await axios.post('http://localhost:5000/api/v1/blogs', formDataToSend, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      }
+      fetchBlogs();
+      resetForm();
+    } catch (error) {
+      setError(
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.error || error.response.data.message || 'Operation failed'
+          : 'An unexpected error occurred'
+      );
+      console.error('Frontend error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle blog deletion
+  const handleDelete = async (id: string) => {
+    const token = localStorage.getItem('token');
+    try {
+      await axios.delete(`http://localhost:5000/api/v1/blogs/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchBlogs();
+    } catch (error) {
+      setError('Failed to delete blog');
+    }
+  };
+
+  // Handle toggling featured status
+  const handleFeatureToggle = async (id: string, currentStatus: boolean) => {
+    const token = localStorage.getItem('token');
+    try {
+      await axios.put(
+        `http://localhost:5000/api/v1/blogs/${id}/feature`,
+        { isFeatured: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchBlogs();
+    } catch (error) {
+      setError('Failed to update featured status');
+    }
+  };
+
+  // Handle edit button click
+  const handleEdit = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://localhost:5000/api/v1/blogs/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blog = response.data.blog;
+      setFormData({
+        title: blog.title,
+        content: blog.content,
+        tags: blog.tags.join(','),
+        isFeatured: blog.isFeatured,
+        image: null,
+      });
+      setEditingBlogId(id);
+    } catch (error) {
+      setError('Failed to load blog data');
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      content: '',
+      tags: '',
+      isFeatured: false,
+      image: null,
+    });
+    setEditingBlogId(null);
+  };
+
+  // Convert buffer to base64 data URL
+  const getImageSrc = (image?: { data: Buffer; contentType: string }) => {
+    if (!image || !image.data) return '';
+    const base64 = Buffer.from(image.data).toString('base64');
+    return `data:${image.contentType};base64,${base64}`;
+  };
 
   return (
     <div className="p-4 lg:p-6 space-y-6 overflow-y-auto scrollbar-hide h-full">
@@ -744,54 +808,182 @@ function BlogPage() {
           <h2 className="text-2xl font-bold text-white">Blog Posts</h2>
           <p className="text-gray-400">Create and manage blog content</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button className="bg-blue-600 hover:bg-blue-700" onClick={resetForm}>
           <Plus className="w-4 h-4 mr-2" />
           New Post
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {blogPosts.map((post) => (
-          <Card key={post.id} className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <Badge variant="outline" className="mb-2">
-                  {post.category}
-                </Badge>
-                <Badge
-                  variant={post.status === "published" ? "default" : post.status === "draft" ? "secondary" : "outline"}
+      {/* Blog Form */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white">
+            {editingBlogId ? 'Edit Blog Post' : 'Create New Blog Post'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="title" className="text-gray-300">Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                className="bg-gray-700 border-gray-600 text-white"
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <Label htmlFor="content" className="text-gray-300">Content</Label>
+              <Textarea
+                id="content"
+                name="content"
+                value={formData.content}
+                onChange={handleInputChange}
+                className="bg-gray-700 border-gray-600 text-white"
+                rows={5}
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <Label htmlFor="tags" className="text-gray-300">Tags (comma-separated)</Label>
+              <Input
+                id="tags"
+                name="tags"
+                value={formData.tags}
+                onChange={handleInputChange}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="e.g., tech, coding, tutorial"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <Label htmlFor="image" className="text-gray-300">Image</Label>
+              <Input
+                id="image"
+                type="file"
+                onChange={handleFileChange}
+                className="bg-gray-700 border-gray-600 text-white"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isFeatured"
+                checked={formData.isFeatured}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, isFeatured: checked }))
+                }
+                disabled={isSubmitting}
+              />
+              <Label htmlFor="isFeatured" className="text-gray-300">Featured</Label>
+            </div>
+            {error && <p className="text-sm text-red-400">{error}</p>}
+            <div className="flex space-x-2">
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Submitting...' : editingBlogId ? 'Update Post' : 'Create Post'}
+              </Button>
+              {editingBlogId && (
+                <Button
+                  type="button"
+                  onClick={resetForm}
+                  variant="outline"
+                  disabled={isSubmitting}
                 >
-                  {post.status}
-                </Badge>
-              </div>
-              <CardTitle className="text-white text-lg">{post.title}</CardTitle>
-              <CardDescription className="text-gray-400">By {post.author}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Date</span>
-                <span className="text-white">{post.date}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Views</span>
-                <span className="text-white">{post.views}</span>
-              </div>
-              <div className="flex space-x-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Eye className="w-4 h-4 mr-2" />
-                  View
+                  Cancel
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Blog List */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white">Blog Posts</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-gray-700">
+                <TableHead className="text-gray-300">Title</TableHead>
+                <TableHead className="text-gray-300">Author</TableHead>
+                <TableHead className="text-gray-300">Tags</TableHead>
+                <TableHead className="text-gray-300">Date</TableHead>
+                <TableHead className="text-gray-300">Featured</TableHead>
+                <TableHead className="text-gray-300">Image</TableHead>
+                <TableHead className="text-gray-300">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {blogs.map((blog) => (
+                <TableRow key={blog._id} className="border-gray-700">
+                  <TableCell className="text-white font-medium">{blog.title}</TableCell>
+                  <TableCell className="text-gray-300">{blog.author.email}</TableCell>
+                  <TableCell className="text-gray-300">{blog.tags.join(', ')}</TableCell>
+                  <TableCell className="text-gray-300">
+                    {new Date(blog.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={blog.isFeatured ? 'default' : 'outline'}>
+                      {blog.isFeatured ? 'Featured' : 'Not Featured'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {blog.image ? (
+                      <img
+                        src={getImageSrc(blog.image)}
+                        alt={blog.title}
+                        className="w-16 h-16 object-cover"
+                      />
+                    ) : (
+                      'No Image'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(blog._id)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(blog._id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFeatureToggle(blog._id, blog.isFeatured)}
+                      >
+                        <Star className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {blogs.length === 0 && (
+            <div className="p-6 text-center text-gray-400">No blog posts found.</div>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }
 
 // Events Page Component
