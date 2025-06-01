@@ -275,6 +275,11 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({ developer, isOp
       onClose();
     } catch (error) {
       console.error('Error saving developer:', error);
+      if (typeof error === 'object' && error !== null && 'response' in error && typeof (error as any).response === 'object') {
+        alert((error as any).response?.data?.error || 'Failed to save developer. Please try again.');
+      } else {
+        alert('Failed to save developer. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
