@@ -33,6 +33,7 @@ import {
   Image,
   Save,
   Book as Publish,
+  CheckCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +50,13 @@ import { Switch } from "@/components/ui/switch"
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 interface Blog {
   _id: string;
@@ -647,6 +655,7 @@ function BlogPage() {
   const [editingBlogId, setEditingBlogId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch all blogs on mount
   useEffect(() => {
@@ -721,13 +730,13 @@ function BlogPage() {
       }
       fetchBlogs();
       resetForm();
+      setIsModalOpen(false); // Close modal on success
     } catch (error) {
       setError(
         axios.isAxiosError(error) && error.response
           ? error.response.data.error || error.response.data.message || 'Operation failed'
           : 'An unexpected error occurred'
       );
-      console.error('Frontend error:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -777,6 +786,7 @@ function BlogPage() {
         image: null,
       });
       setEditingBlogId(id);
+      setIsModalOpen(true);
     } catch (error) {
       setError('Failed to load blog data');
     }
@@ -792,6 +802,7 @@ function BlogPage() {
       image: null,
     });
     setEditingBlogId(null);
+    setError('');
   };
 
   // Convert buffer to base64 data URL
@@ -808,102 +819,101 @@ function BlogPage() {
           <h2 className="text-2xl font-bold text-white">Blog Posts</h2>
           <p className="text-gray-400">Create and manage blog content</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700" onClick={resetForm}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Post
-        </Button>
-      </div>
-
-      {/* Blog Form */}
-      <Card className="bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">
-            {editingBlogId ? 'Edit Blog Post' : 'Create New Blog Post'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="title" className="text-gray-300">Title</Label>
-              <Input
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                className="bg-gray-700 border-gray-600 text-white"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-            <div>
-              <Label htmlFor="content" className="text-gray-300">Content</Label>
-              <Textarea
-                id="content"
-                name="content"
-                value={formData.content}
-                onChange={handleInputChange}
-                className="bg-gray-700 border-gray-600 text-white"
-                rows={5}
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-            <div>
-              <Label htmlFor="tags" className="text-gray-300">Tags (comma-separated)</Label>
-              <Input
-                id="tags"
-                name="tags"
-                value={formData.tags}
-                onChange={handleInputChange}
-                className="bg-gray-700 border-gray-600 text-white"
-                placeholder="e.g., tech, coding, tutorial"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div>
-              <Label htmlFor="image" className="text-gray-300">Image</Label>
-              <Input
-                id="image"
-                type="file"
-                onChange={handleFileChange}
-                className="bg-gray-700 border-gray-600 text-white"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isFeatured"
-                checked={formData.isFeatured}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, isFeatured: checked }))
-                }
-                disabled={isSubmitting}
-              />
-              <Label htmlFor="isFeatured" className="text-gray-300">Featured</Label>
-            </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <div className="flex space-x-2">
-              <Button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Submitting...' : editingBlogId ? 'Update Post' : 'Create Post'}
-              </Button>
-              {editingBlogId && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
+              resetForm();
+              setIsModalOpen(true);
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Post
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-gray-800 border-gray-700 text-white">
+            <DialogHeader>
+              <DialogTitle>{editingBlogId ? 'Edit Blog Post' : 'Create New Blog Post'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="title" className="text-gray-300">Title</Label>
+                <Input
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <Label htmlFor="content" className="text-gray-300">Content</Label>
+                <Textarea
+                  id="content"
+                  name="content"
+                  value={formData.content}
+                  onChange={handleInputChange}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  rows={5}
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <Label htmlFor="tags" className="text-gray-300">Tags (comma-separated)</Label>
+                <Input
+                  id="tags"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleInputChange}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="e.g., tech, coding, tutorial"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <Label htmlFor="image" className="text-gray-300">Image</Label>
+                <Input
+                  id="image"
+                  type="file"
+                  onChange={handleFileChange}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="isFeatured"
+                  checked={formData.isFeatured}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, isFeatured: checked }))
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="isFeatured" className="text-gray-300">Featured</Label>
+              </div>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <div className="flex justify-end space-x-2">
                 <Button
                   type="button"
-                  onClick={resetForm}
                   variant="outline"
+                  onClick={() => setIsModalOpen(false)}
                   disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Submitting...' : editingBlogId ? 'Update Post' : 'Create Post'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {/* Blog List */}
       <Card className="bg-gray-800 border-gray-700">
@@ -1272,120 +1282,482 @@ function NewslettersPage() {
 }
 
 // Contact Page Component
-function ContactPage() {
-  const [selectedQuery, setSelectedQuery] = useState(null)
 
-  const queries = [
-    {
-      id: 1,
-      name: "John Smith",
-      email: "john@example.com",
-      subject: "Project Inquiry",
-      message: "I'm interested in discussing a new project...",
-      status: "new",
-      date: "2024-04-22",
-    },
-    {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah@company.com",
-      subject: "Partnership Opportunity",
-      message: "We'd like to explore a potential partnership...",
-      status: "replied",
-      date: "2024-04-21",
-    },
-    {
-      id: 3,
-      name: "Mike Davis",
-      email: "mike@startup.com",
-      subject: "Technical Support",
-      message: "We're experiencing issues with our implementation...",
-      status: "in-progress",
-      date: "2024-04-20",
-    },
-    {
-      id: 4,
-      name: "Emma Wilson",
-      email: "emma@business.com",
-      subject: "Quote Request",
-      message: "Could you provide a quote for a mobile app...",
-      status: "new",
-      date: "2024-04-19",
-    },
-  ]
+// API configuration
+const API_BASE_URL = 'http://localhost:5000/api/v1/contacts';
+
+// Helper function to get auth token (implement based on your auth system)
+const getAuthToken = () => {
+  // Replace with your actual token retrieval logic
+  return localStorage.getItem('authToken') || '';
+};
+
+// API functions using your actual endpoints
+const api = {
+  getContacts: async (filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters.responded !== undefined) {
+        queryParams.append('responded', filters.responded);
+      }
+      
+      const url = `${API_BASE_URL}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      throw error;
+    }
+  },
+  
+  getContact: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching contact:', error);
+      throw error;
+    }
+  },
+  
+  respondToContact: async (id, responseText) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}/respond`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ response: responseText }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error responding to contact:', error);
+      throw error;
+    }
+  },
+  
+  deleteContact: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      throw error;
+    }
+  }
+};
+
+const StatusBadge = ({ status }) => {
+  const getStatusConfig = () => {
+    if (status) {
+      return {
+        color: 'bg-green-500',
+        icon: CheckCircle,
+        text: 'Responded'
+      };
+    } else {
+      return {
+        color: 'bg-red-500',
+        icon: AlertCircle,
+        text: 'New'
+      };
+    }
+  };
+
+  const config = getStatusConfig();
+  const Icon = config.icon;
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 overflow-y-auto scrollbar-hide h-full">
+    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${config.color}`}>
+      <Icon className="w-3 h-3 mr-1" />
+      {config.text}
+    </div>
+  );
+};
+
+const ContactModal = ({ contact, isOpen, onClose, onRespond }) => {
+  const [response, setResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e: any) => {
+    if (!response.trim()) return;
+
+    setIsLoading(true);
+    onRespond(contact._id, response)
+      .then(() => {
+        setResponse('');
+        onClose();
+      })
+      .catch((error) => {
+        console.error('Error sending response:', error);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };
+
+  if (!isOpen || !contact) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="text-xl font-bold text-white">Contact Details</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="text-sm font-medium text-gray-300">Name</label>
+              <p className="text-white">{contact.name}</p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-300">Email</label>
+              <p className="text-white">{contact.email}</p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-300">Date</label>
+              <p className="text-white">{new Date(contact.createdAt).toLocaleDateString()}</p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-300">Status</label>
+              <div className="mt-1">
+                <StatusBadge status={contact.responded} />
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-300">Message</label>
+              <div className="bg-gray-700 p-3 rounded-lg mt-1">
+                <p className="text-white whitespace-pre-wrap">{contact.message}</p>
+              </div>
+            </div>
+
+            {contact.responded && contact.response && (
+              <div>
+                <label className="text-sm font-medium text-gray-300">Previous Response</label>
+                <div className="bg-blue-900 p-3 rounded-lg mt-1">
+                  <p className="text-white whitespace-pre-wrap">{contact.response}</p>
+                  <p className="text-xs text-gray-300 mt-2">
+                    Sent on {new Date(contact.respondedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!contact.responded && (
+            <div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Response
+                </label>
+                <textarea
+                  value={response}
+                  onChange={(e) => setResponse(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="6"
+                  placeholder="Type your response here..."
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading || !response.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Send Response</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type Contact = {
+  _id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
+  responded: boolean;
+  response?: string;
+  respondedAt?: string;
+};
+
+function ContactPage() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  useEffect(() => {
+    loadContacts();
+  }, []);
+
+  const loadContacts = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getContacts();
+      setContacts(data.contacts);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewContact = (contact) => {
+    setSelectedContact(contact);
+    setIsModalOpen(true);
+  };
+
+  const handleRespond = async (contactId: any, response: any) => {
+    await api.respondToContact(contactId, response);
+    // Update the contact in the local state
+    setContacts(contacts.map(contact => 
+      contact._id === contactId 
+        ? { ...contact, responded: true, response, respondedAt: new Date().toISOString() }
+        : contact
+    ));
+  };
+
+  const handleDelete = async (contactId) => {
+    if (window.confirm('Are you sure you want to delete this contact?')) {
+      await api.deleteContact(contactId);
+      setContacts(contacts.filter(contact => contact._id !== contactId));
+    }
+  };
+
+  const filteredContacts = contacts.filter(contact => {
+    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         contact.message.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'new' && !contact.responded) ||
+                         (statusFilter === 'responded' && contact.responded);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 lg:p-6 space-y-6 overflow-y-auto h-full bg-gray-900">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h2 className="text-2xl font-bold text-white">Contact Queries</h2>
+          <h2 className="text-2xl font-bold text-white">Contact Management</h2>
           <p className="text-gray-400">Manage customer inquiries and support requests</p>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
-          <Button variant="outline">
-            <Archive className="w-4 h-4 mr-2" />
-            Archive
-          </Button>
+        
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="new">New</option>
+            <option value="responded">Responded</option>
+          </select>
+          
+          <button
+            onClick={loadContacts}
+            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 transition-colors flex items-center space-x-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-gray-700">
-                <TableHead className="text-gray-300">Contact</TableHead>
-                <TableHead className="text-gray-300">Subject</TableHead>
-                <TableHead className="text-gray-300">Status</TableHead>
-                <TableHead className="text-gray-300">Date</TableHead>
-                <TableHead className="text-gray-300">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {queries.map((query) => (
-                <TableRow key={query.id} className="border-gray-700">
-                  <TableCell>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Contact
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Message Preview
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-700">
+              {filteredContacts.map((contact) => (
+                <tr key={contact._id} className="hover:bg-gray-750 transition-colors">
+                  <td className="px-6 py-4">
                     <div>
-                      <div className="text-white font-medium">{query.name}</div>
-                      <div className="text-gray-400 text-sm">{query.email}</div>
+                      <div className="text-white font-medium">{contact.name}</div>
+                      <div className="text-gray-400 text-sm">{contact.email}</div>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-gray-300">{query.subject}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        query.status === "new" ? "destructive" : query.status === "replied" ? "default" : "secondary"
-                      }
-                    >
-                      {query.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-gray-300">{query.date}</TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-gray-300 text-sm line-clamp-2">
+                      {contact.message.substring(0, 100)}...
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={contact.responded} />
+                  </td>
+                  <td className="px-6 py-4 text-gray-300 text-sm">
+                    {new Date(contact.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
+                      <button
+                        onClick={() => handleViewContact(contact)}
+                        className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                        title="View Details"
+                      >
                         <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Reply className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Archive className="w-4 h-4" />
-                      </Button>
+                      </button>
+                      {!contact.responded && (
+                        <button
+                          onClick={() => handleViewContact(contact)}
+                          className="p-2 text-gray-400 hover:text-green-400 transition-colors"
+                          title="Respond"
+                        >
+                          <Reply className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(contact._id)}
+                        className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </tbody>
+          </table>
+        </div>
+
+        {filteredContacts.length === 0 && (
+          <div className="text-center py-12">
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-400">No contacts found matching your criteria.</p>
+          </div>
+        )}
+      </div>
+
+      <ContactModal
+        contact={selectedContact}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onRespond={handleRespond}
+      />
     </div>
-  )
+  );
 }
 
 // Settings Page Component

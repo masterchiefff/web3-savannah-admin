@@ -1,9 +1,9 @@
 'use client';
 
-import { AdminDashboard } from '@/components/admin-dashboard';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
 
 // Helper function to verify token client-side
 async function verifyToken(token: string) {
@@ -40,16 +40,14 @@ export default function Page() {
         } else {
           login(token, userData); 
           localStorage.setItem('lastPath', window.location.pathname);
+          router.push('/dashboard');
         }
       });
     } else {
       localStorage.setItem('lastPath', window.location.pathname);
+      router.push('/dashboard');
     }
   }, [router, user, login]);
 
-  if (!user) {
-    return null;
-  }
-
-  return <AdminDashboard />;
+  return null;
 }

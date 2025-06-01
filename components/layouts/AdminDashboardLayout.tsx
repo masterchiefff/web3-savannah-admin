@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Search,
   ChevronLeft,
@@ -60,8 +61,8 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
   }
 
   const sidebarItems: SidebarItem[] = [
-    { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", active: currentPage === "dashboard" },
-    { id: "developers", icon: Users, label: "Developers", active: currentPage === "developers" },
+    { id: "", icon: LayoutDashboard, label: "Dashboard", active: currentPage === "dashboard" },
+    { id: "team", icon: Users, label: "Developers", active: currentPage === "team" },
     { id: "projects", icon: FolderOpen, label: "Projects", active: currentPage === "projects" },
     { id: "tasks", icon: CheckSquare, label: "Tasks", active: currentPage === "tasks" },
     { id: "blog", icon: FileText, label: "Blog Posts", active: currentPage === "blog" },
@@ -96,8 +97,9 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
           <p className="text-gray-400 text-sm mb-3">Management</p>
           <nav className="space-y-1">
             {sidebarItems.map((item) => (
-              <button
+              <Link
                 key={item.id}
+                href={`/${item.id}`}
                 onClick={() => handleNavigation(item.id)}
                 className={`w-full flex items-center px-3 py-2 rounded-lg text-sm ${
                   item.active ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-700"
@@ -105,7 +107,7 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
               >
                 <item.icon className="w-4 h-4 mr-3" />
                 {item.label}
-              </button>
+              </Link>
             ))}
           </nav>
         </div>
@@ -113,14 +115,26 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
           <p className="text-gray-400 text-sm mb-3">Account</p>
           <nav className="space-y-1">
             {accountItems.map((item, index) => (
-              <button
-                key={index}
-                onClick={() => (item.onClick ? item.onClick() : item.id && handleNavigation(item.id))}
-                className="w-full flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700"
-              >
-                <item.icon className="w-4 h-4 mr-3" />
-                {item.label}
-              </button>
+              item.id ? (
+                <Link
+                  key={index}
+                  href={`/admin/${item.id}`}
+                  onClick={() => item.id && handleNavigation(item.id)}
+                  className="w-full flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700"
+                >
+                  <item.icon className="w-4 h-4 mr-3" />
+                  {item.label}
+                </Link>
+              ) : (
+                <button
+                  key={index}
+                  onClick={item.onClick}
+                  className="w-full flex items-center px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-700"
+                >
+                  <item.icon className="w-4 h-4 mr-3" />
+                  {item.label}
+                </button>
+              )
             ))}
           </nav>
         </div>
