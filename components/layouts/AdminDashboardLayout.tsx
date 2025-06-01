@@ -92,7 +92,7 @@ export function AdminDashboard({ children }: AdminDashboardProps) {
     { id: "tasks", icon: CheckSquare, label: "Tasks", active: currentPage === "tasks" },
     { id: "blog", icon: FileText, label: "Blog Posts", active: currentPage === "blog" },
     { id: "events", icon: Calendar, label: "Events", active: currentPage === "events" },
-    { id: "landing", icon: Globe, label: "Landing Page", active: currentPage === "landing" },
+    // { id: "landing", icon: Globe, label: "Landing Page", active: currentPage === "landing" },
     { id: "newsletters", icon: Newspaper, label: "Newsletters", active: currentPage === "newsletters" },
     { id: "contact", icon: MessageSquare, label: "Contact Queries", active: currentPage === "contact" },
   ]

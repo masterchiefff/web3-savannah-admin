@@ -1,33 +1,21 @@
-"use client"
+'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Eye, 
-  Reply, 
-  Archive, 
-  Filter, 
-  Search, 
-  Trash2, 
-  Send,
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Eye,
+  Trash2,
+  Search,
+  RefreshCw,
   X,
   CheckCircle,
-  Clock,
   AlertCircle,
-  RefreshCw
+  Reply,
 } from 'lucide-react';
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { AdminDashboard } from '@/components/layouts/AdminDashboardLayout';
 
 // Define interfaces for type safety
@@ -36,14 +24,19 @@ interface Contact {
   name: string;
   email: string;
   message: string;
+  createdAt: string;
   responded: boolean;
   response?: string;
   respondedAt?: string;
-  createdAt: string;
+  firstName: string;
+  lastName: string;
+  company?: string;
+  serviceInterest?: string;
+  privacyPolicy: boolean;
 }
 
-interface ContactsResponse {
-  contacts: Contact[];
+interface StatusBadgeProps {
+  status: boolean;
 }
 
 interface ContactModalProps {
@@ -53,128 +46,164 @@ interface ContactModalProps {
   onRespond: (contactId: string, response: string) => Promise<void>;
 }
 
-interface StatusBadgeProps {
-  status: boolean;
-}
-
 // API configuration
 const API_BASE_URL = 'http://localhost:5000/api/v1/contacts';
 
 // Helper function to get auth token
 const getAuthToken = (): string => {
-  return localStorage.getItem('authToken') || '';
+  return localStorage.getItem('token') || '';
 };
 
-// API functions with TypeScript types
 const api = {
-  getContacts: async (filters: { responded?: boolean } = {}): Promise<ContactsResponse> => {
+  getContacts: async (filters: { responded?: boolean } = {}): Promise<{ contacts: Contact[] }> => {
     try {
       const queryParams = new URLSearchParams();
       if (filters.responded !== undefined) {
         queryParams.append('responded', filters.responded.toString());
       }
-      
+
       const url = `${API_BASE_URL}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      
+      console.log('Fetching contacts from:', url);
+
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No auth token available');
+      }
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const data: ContactsResponse = await response.json();
+
+      const data = await response.json();
+      console.log('Fetched contacts:', data.contacts);
       return data;
     } catch (error) {
       console.error('Error fetching contacts:', error);
       throw error;
     }
   },
-  
-  getContact: async (id: string): Promise<Contact> => {
+
+  getContact: async (id: string): Promise<{ contact: Contact }> => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No auth token available');
+      }
+
       const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const data: Contact = await response.json();
-      return data;
+
+      return await response.json();
     } catch (error) {
       console.error('Error fetching contact:', error);
       throw error;
     }
   },
-  
-  respondToContact: async (id: string, responseText: string): Promise<void> => {
+
+  respondToContact: async (id: string, responseText: string): Promise<{ contact: Contact }> => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No auth token available');
+      }
+
       const response = await fetch(`${API_BASE_URL}/${id}/respond`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ response: responseText }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      await response.json();
+
+      return await response.json();
     } catch (error) {
       console.error('Error responding to contact:', error);
       throw error;
     }
   },
-  
+
   deleteContact: async (id: string): Promise<void> => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No auth token available');
+      }
+
       const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      await response.json();
     } catch (error) {
       console.error('Error deleting contact:', error);
       throw error;
     }
-  }
+  },
 };
 
+// Helper function to verify token client-side
+async function verifyToken(token: string) {
+  try {
+    const response = await fetch('http://localhost:5000/api/v1/auth/verify', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Token verification failed: ${response.status}`);
+    }
+    const data = await response.json();
+    console.log('Token verification successful:', data);
+    return data;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
+  }
+}
+
+// StatusBadge Component
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const getStatusConfig = () => {
     if (status) {
       return {
         color: 'bg-green-500',
         icon: CheckCircle,
-        text: 'Responded'
+        text: 'Responded',
       };
     } else {
       return {
         color: 'bg-red-500',
         icon: AlertCircle,
-        text: 'New'
+        text: 'New',
       };
     }
   };
@@ -183,27 +212,26 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const Icon = config.icon;
 
   return (
-    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${config.color}`}>
+    <Badge className={`inline-flex items-center px-2 py-1 text-xs font-medium text-white ${config.color}`}>
       <Icon className="w-3 h-3 mr-1" />
       {config.text}
-    </div>
+    </Badge>
   );
 };
 
+// ContactModal Component
 const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, onRespond }) => {
-  const [response, setResponse] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [response, setResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (!response.trim()) return;
 
     setIsLoading(true);
     try {
-      if (contact?._id) {
-        await onRespond(contact._id, response);
-        setResponse('');
-        onClose();
-      }
+      await onRespond(contact!._id, response);
+      setResponse('');
+      onClose();
     } catch (error) {
       console.error('Error sending response:', error);
     } finally {
@@ -219,12 +247,14 @@ const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, o
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-xl font-bold text-white">Contact Details</h3>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-4 mb-6">
@@ -232,24 +262,34 @@ const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, o
               <label className="text-sm font-medium text-gray-300">Name</label>
               <p className="text-white">{contact.name}</p>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium text-gray-300">Email</label>
               <p className="text-white">{contact.email}</p>
             </div>
-            
+
+            <div>
+              <label className="text-sm font-medium text-gray-300">Company</label>
+              <p className="text-white">{contact.company || 'N/A'}</p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-300">Service Interest</label>
+              <p className="text-white">{contact.serviceInterest || 'N/A'}</p>
+            </div>
+
             <div>
               <label className="text-sm font-medium text-gray-300">Date</label>
               <p className="text-white">{new Date(contact.createdAt).toLocaleDateString()}</p>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium text-gray-300">Status</label>
               <div className="mt-1">
                 <StatusBadge status={contact.responded} />
               </div>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium text-gray-300">Message</label>
               <div className="bg-gray-700 p-3 rounded-lg mt-1">
@@ -273,9 +313,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, o
           {!contact.responded && (
             <div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Response
-                </label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Response</label>
                 <textarea
                   value={response}
                   onChange={(e) => setResponse(e.target.value)}
@@ -284,20 +322,19 @@ const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, o
                   placeholder="Type your response here..."
                 />
               </div>
-              
+
               <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-300 hover:text-white transition-colors"
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
                   onClick={handleSubmit}
                   disabled={isLoading || !response.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="bg-blue-600 hover:bg-blue-700 flex items-center space-x-2"
                 >
                   {isLoading ? (
                     <>
@@ -306,11 +343,11 @@ const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, o
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4" />
+                      <Reply className="w-4 h-4" />
                       <span>Send Response</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -320,26 +357,76 @@ const ContactModal: React.FC<ContactModalProps> = ({ contact, isOpen, onClose, o
   );
 };
 
-const ContactManagement: React.FC = () => {
+// Main ContactPage Component
+export default function ContactPage() {
+  const router = useRouter();
+  const { user, login } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
+  // Authentication check
   useEffect(() => {
-    loadContacts();
-  }, []);
+    const token = getAuthToken();
+    console.log('Auth token:', token ? 'Present' : 'Missing');
+
+    if (!token) {
+      console.warn('No auth token found, redirecting to login');
+      setAuthError('Please log in to access contacts.');
+      localStorage.removeItem('lastPath');
+      router.push('/login');
+      return;
+    }
+
+    if (!user) {
+      verifyToken(token).then((userData) => {
+        if (!userData) {
+          console.warn('Token verification failed, redirecting to login');
+          setAuthError('Session expired. Please log in again.');
+          localStorage.removeItem('lastPath');
+          router.push('/login');
+        } else {
+          console.log('Token verified, user:', userData.user.email);
+          login(token, userData.user);
+          localStorage.setItem('lastPath', window.location.pathname);
+          loadContacts();
+        }
+      }).catch((error) => {
+        console.error('Error during token verification:', error);
+        setAuthError('Authentication error. Please log in again.');
+        router.push('/login');
+      });
+    } else {
+      console.log('User authenticated:', user.email);
+      localStorage.setItem('lastPath', window.location.pathname);
+      loadContacts();
+    }
+  }, [router, user, login]);
 
   const loadContacts = async () => {
     try {
       setLoading(true);
+      // Fetch all contacts without any filters
       const data = await api.getContacts();
+      console.log(data)
+      const validContacts = data.contacts.filter(
+        (contact: Contact) =>
+          contact.name &&
+          typeof contact.name === 'string' &&
+          contact.email &&
+          typeof contact.email === 'string' &&
+          contact.message &&
+          typeof contact.message === 'string'
+      );
+      console.log('Valid contacts set:', validContacts);
       setContacts(data.contacts);
     } catch (error) {
       console.error('Error loading contacts:', error);
+      setAuthError('Failed to load contacts. Please check your session or try again.');
     } finally {
       setLoading(false);
     }
@@ -351,34 +438,47 @@ const ContactManagement: React.FC = () => {
   };
 
   const handleRespond = async (contactId: string, response: string) => {
-    await api.respondToContact(contactId, response);
-    setContacts(contacts.map(contact => 
-      contact._id === contactId 
-        ? { ...contact, responded: true, response, respondedAt: new Date().toISOString() }
-        : contact
-    ));
-  };
-
-  const handleDelete = async (contactId: string) => {
-    if (window.confirm('Are you sure you want to delete this contact?')) {
-      await api.deleteContact(contactId);
-      setContacts(contacts.filter(contact => contact._id !== contactId));
+    try {
+      const updatedContact = await api.respondToContact(contactId, response);
+      setContacts(
+        contacts.map((contact) =>
+          contact._id === contactId
+            ? { ...contact, responded: true, response, respondedAt: new Date().toISOString() }
+            : contact
+        )
+      );
+    } catch (error) {
+      console.error('Error responding to contact:', error);
+      setAuthError('Failed to send response. Please check your session.');
+      throw error;
     }
   };
 
-  const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.message.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'new' && !contact.responded) ||
-                         (statusFilter === 'responded' && contact.responded);
-    
+  const handleDeleteContact = async (contactId: string) => {
+    try {
+      await api.deleteContact(contactId);
+      setContacts(contacts.filter((contact) => contact._id !== contactId));
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      setAuthError('Failed to delete contact. Please check your session.');
+    }
+  };
+
+  const filteredContacts = contacts.filter((contact) => {
+    const matchesSearch =
+      (contact.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (contact.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (contact.message || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'new' && !contact.responded) ||
+      (statusFilter === 'responded' && contact.responded);
+
     return matchesSearch && matchesStatus;
   });
 
-  if (loading) {
+  if (!user || loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
@@ -389,16 +489,28 @@ const ContactManagement: React.FC = () => {
   return (
     <AdminDashboard>
       <div className="p-4 lg:p-6 space-y-6 overflow-y-auto h-full bg-gray-900">
+        {authError && (
+          <div className="bg-red-600 text-white p-4 rounded-lg mb-4">
+            {authError}
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/login')}
+              className="ml-4 text-white underline"
+            >
+              Log In
+            </Button>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
           <div>
             <h2 className="text-2xl font-bold text-white">Contact Management</h2>
             <p className="text-gray-400">Manage customer inquiries and support requests</p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
+              <Input
                 type="text"
                 placeholder="Search contacts..."
                 value={searchTerm}
@@ -406,7 +518,7 @@ const ContactManagement: React.FC = () => {
                 className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -416,14 +528,14 @@ const ContactManagement: React.FC = () => {
               <option value="new">New</option>
               <option value="responded">Responded</option>
             </select>
-            
-            <button
+
+            <Button
               onClick={loadContacts}
               className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 transition-colors flex items-center space-x-2"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Refresh</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -471,29 +583,35 @@ const ContactManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex space-x-2">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleViewContact(contact)}
-                          className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                          className="text-gray-400 hover:text-blue-400 transition-colors"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
+                        </Button>
                         {!contact.responded && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleViewContact(contact)}
-                            className="p-2 text-gray-400 hover:text-green-400 transition-colors"
+                            className="text-gray-400 hover:text-green-400 transition-colors"
                             title="Respond"
                           >
                             <Reply className="w-4 h-4" />
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          onClick={() => handleDelete(contact._id)}
-                          className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteContact(contact._id)}
+                          className="text-gray-400 hover:text-red-400 transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -505,7 +623,11 @@ const ContactManagement: React.FC = () => {
           {filteredContacts.length === 0 && (
             <div className="text-center py-12">
               <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-400">No contacts found matching your criteria.</p>
+              <p className="text-gray-400">
+                {contacts.length === 0
+                  ? 'No contacts found. Try submitting a contact form.'
+                  : 'No contacts found matching your criteria.'}
+              </p>
             </div>
           )}
         </div>
@@ -520,5 +642,3 @@ const ContactManagement: React.FC = () => {
     </AdminDashboard>
   );
 }
-
-export default ContactManagement;
